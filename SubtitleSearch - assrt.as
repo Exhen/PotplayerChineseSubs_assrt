@@ -1,4 +1,4 @@
-﻿/*
+/*
 	subtitle search by assrt
 */
  
@@ -102,7 +102,7 @@ string GetVersion()
 
 string GetDesc()
 {
-	return "https://secure.assrt.net/usercp.php";
+	return "https://github.com/Exhen/PotplayerChineseSubs";
 }
 
 string GetLoginTitle()
