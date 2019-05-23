@@ -273,7 +273,7 @@ string SubtitleDownload(string id)
 	string json = HostUrlGetString(api);
 	JsonReader Reader;
 	JsonValue Root;
-	
+
 	if (Reader.parse(json, Root) && Root.isObject())
 	{
 		if (Root["status"].isInt()){
@@ -288,8 +288,20 @@ string SubtitleDownload(string id)
 
 					if (subDetail.isObject()){
 
-						JsonValue url = subDetail["filelist"][0]["url"];
-													
+						JsonValue url;
+						if(!subDetail["url"].isNull()){
+							url=subDetail["url"];
+
+						}
+						else{
+							if(subDetail["filelist"].size()>0){
+							url = subDetail["filelist"][0]["url"];
+						}
+							
+						}
+
+
+						
 						if (url.isString())
 						{
 							return HostUrlGetString(url.asString());
