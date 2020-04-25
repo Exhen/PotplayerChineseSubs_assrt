@@ -7,68 +7,52 @@
 // string GetDesc()																	-> get detail information
 // string GetLoginTitle()															-> get title for login dialog
 // string GetLoginDesc()															-> get desc for login dialog
-// string GetUserText()																-> get user text for login dialog
-// string GetPasswordText()															-> get password text for login dialog
 // string ServerCheck(string User, string Pass) 									-> server check
 // string ServerLogin(string User, string Pass) 									-> login
-// void ServerLogout() 																-> logout
 // string GetLanguages()															-> get support language
 // string SubtitleWebSearch(string MovieFileName, dictionary MovieMetaData)			-> search subtitle bu web browser
 // array<dictionary> SubtitleSearch(string MovieFileName, dictionary MovieMetaData)	-> search subtitle
 // string SubtitleDownload(string id)												-> download subtitle
-// string GetUploadFormat()															-> upload format
-// string SubtitleUpload(string MovieFileName, dictionary MovieMetaData, string SubtitleName, string SubtitleContent)	-> upload subtitle
  
 string Token;
 
-uint64 GetHash(string FileName)
+string convertLang(string lang)
 {
-	int64 size = 0;
-	uint64 hash = 0;
-	uintptr fp = HostFileOpen(FileName);
-
-	if (fp != 0)
-	{
-		size = HostFileLength(fp);
-		hash = size;
-		
-		for (int i = 0; i < 65536 / 8; i++) hash = hash + HostFileReadQWORD(fp);
-		
-		int64 ep = size - 65536;
-		if (ep < 0) ep = 0;
-		HostFileSeek(fp, ep, 0);
-		for (int i = 0; i < 65536 / 8; i++) hash = hash + HostFileReadQWORD(fp);
-		
-		HostFileClose(fp);
-	}
-	
-	return hash;
-}
-
-
-void AssignItem(dictionary &dst, JsonValue &in src, string dst_key, string src_key = "")
-{
-	if (src_key.empty()) src_key = dst_key;
-	if (src[src_key].isString()) dst[dst_key] = src[src_key].asString();
-	else if (src[src_key].isInt64()) dst[dst_key] = src[src_key].asInt64();	
+    if(lang.findFirst("简")>=0||lang.findFirst("chs")>=0){
+        return "zh-CN";
+    }else{
+        if(lang.findFirst("繁")>=0||lang.findFirst("cht")>=0){
+          return "zh-TW";
+        }
+        else{
+            if(lang.findFirst("英")>=0||lang.findFirst("eng")>=0){
+                return "en";
+            }else{
+                if(lang.findFirst("日")>=0||lang.findFirst("jap")>=0){
+                    return "ja";
+                }else{
+                    if(lang.findFirst("韩")>=0||lang.findFirst("ko")>=0){
+                        return "ko";
+                    }
+                }
+            }
+        }
+    }
+    return "";
 }
 
 string UrlComposeQuery(string &host, const string &in path, dictionary &in querys)
 {
 	string ret = host + path + "?";
-
 	const array<string> keys = querys.getKeys();
-
 	for (int i = 0, len = keys.size(); i < len; i++){
 		if (i > 0 ){
 			ret += "&";
 		}
 		ret += keys[i] + "=" + HostUrlEncode(string(querys[keys[i]]));
 	}
-
 	return ret;
 }
-
 string HtmlSpecialCharsDecode(string str)
 {
 	str.replace("&amp;", "&");
@@ -77,48 +61,38 @@ string HtmlSpecialCharsDecode(string str)
 	str.replace("&lt;", "<");
 	str.replace("&gt;", ">");
 	str.replace("&rsquo;", "'");
-	
 	return str;
 }
-
 string API_URL = "https://api.assrt.net";
-
 array<array<string>> LangTable =
 {
 	{ "en", "English" },                              
-	{ "zh", "Chinese" },                                     
-	{ "zh", "Mandarin" }                         
+	{ "zh-TW", "Chinese" },                                     
+	{ "zh-CN", "Mandarin" }                         
 };
-
 string GetTitle()
 {
 	return "射手(伪)";
 }
-
 string GetVersion()
 {
-	return "1";
+	return "1.2";
 }
-
 string GetDesc()
 {
 	return "https://github.com/Exhen/PotplayerChineseSubs";
 }
-
 string GetLoginTitle()
 {
 	return "Token";
 }
-
 string GetLoginDesc()
 {
 	return "账户随便填，密码填assrt的token";;
 }
-
 string GetLanguages()
 {
 	string ret = "";
-	
 	for(int i = 0, len = LangTable.size(); i < len; i++)
 	{
 		string lang = LangTable[i][0];
@@ -131,46 +105,34 @@ string GetLanguages()
 	}
 	return ret;
 }	
-
 string ServerCheck(string User, string Pass)
 {
-	string ret = HostUrlGetString(API_URL);
-	
-	if (ret.empty()) return "fail";
-	return "200 OK";
+	return ServerLogin(User,Pass);
 }
-
 string ServerLogin(string User, string Pass)
 {
-
-	string r = HostUrlGetString(API_URL+'/v1/sub/search?token=' + Pass + '&q=颐和园&cnt=1&pos=0');
-	string ret;
+    Token = Pass;
+	string r = HostUrlGetString(API_URL+"/v1/sub/search?token=" + Pass + "&q=颐和园");
 	JsonValue json;
 	JsonReader jsonR;
 	if (jsonR.parse(r,json))
 	{
-		if(json["status"].asString()=='0')
+        // HostPrintUTF8("status: "+formatInt(json["status"].asInt()));
+		if(json["status"].asInt()==0)
 		{
-			Token = Pass;
 			return "成功："+Token;
 		}
 		else{
 			return "错误："+json["errmsg"].asString();
 		}
 	}
-
 	return "错误：无法连接";
 }
-
-
 string SubtitleWebSearch(string MovieFileName, dictionary MovieMetaData)
 {
 	string title = HtmlSpecialCharsDecode(string(MovieMetaData["title"]));
-
-
 	if(MovieMetaData.exists("seasonNumber")){
 		string season=string(MovieMetaData["seasonNumber"]);
-		
 		if(season.length()<2){
 			season='0'+season;
 		}
@@ -184,32 +146,31 @@ string SubtitleWebSearch(string MovieFileName, dictionary MovieMetaData)
 		else{
 			title=title+" S"+season;
 		}
-		
 	}
-
-
-
 	string finalURL = UrlComposeQuery(API_URL, '/v1/sub/search', {
 		{"token", Token},
 		{"q", title},
 		{"is_file", '1'},
+        // 在这里修改每次抓取的条数
+		{"cnt", '4'},
 		{"no_muxer", '1'}
 	});
 	return finalURL;
-	
 }
-
 array<dictionary> SubtitleSearch(string MovieFileName, dictionary MovieMetaData)
 {
 	array<dictionary> ret;
-
+    // HostOpenConsole();
+    array<string> MovieFileNameSplit=MovieFileName.split(".");
+    if(MovieFileNameSplit[MovieFileNameSplit.length()-1]=="mpls"||MovieFileNameSplit[MovieFileNameSplit.length()-1]=="m2ts"){
+        return ret;
+    }
 	string finalURL = SubtitleWebSearch(MovieFileName, MovieMetaData);
 	for(int j=0;;j++){
 		string URL=UrlComposeQuery(finalURL,'',{{"pos",j}});
 		string json = HostUrlGetString(URL);
 		JsonReader Reader;
 		JsonValue Root;
-
 		if (Reader.parse(json, Root) && Root.isObject())
 		{
 			if (Root["status"].isInt()){
@@ -218,99 +179,78 @@ array<dictionary> SubtitleSearch(string MovieFileName, dictionary MovieMetaData)
 					JsonValue subs = Root["sub"]["subs"];
 					if (subs.isArray()){
 						for(int i = 0, len = subs.size(); i < len; i++){
-							dictionary item;
-							AssignItem(item, subs[i], "id");
-							AssignItem(item, subs[i], "title", "native_name");
-							AssignItem(item, subs[i], "fileName", "videoname");
-							AssignItem(item, subs[i], "format", "subtype");
-							JsonValue langlist = subs[i]["lang"]["langlist"];
-							item["lang"] = "zht";
-							if(langlist["langchs"].asBool()){
-								item["lang"] = "zhs";
+                            // HostPrintUTF8(subs[i]["id"].asString());
+							string api = UrlComposeQuery(API_URL, "/v1/sub/detail", {
+								{"token", Token},
+								{"id", subs[i]["id"].asString()}
+							});
+							string downJson = HostUrlGetString(api);
+							JsonReader downReader;
+							JsonValue downRoot;
+							if (downReader.parse(downJson, downRoot) && downRoot.isObject())
+							{
+								if (downRoot["status"].isInt()){
+                                    // HostPrintUTF8(downRoot["status"].asString());
+									int downStatus = downRoot["status"].asInt();
+									if (downStatus == 0) {
+										JsonValue fSubs = downRoot["sub"]["subs"];	
+										if (fSubs.isArray()){
+											JsonValue subDetail = fSubs[0];
+											if (subDetail.isObject()){
+												if(subDetail["filelist"].size()>0){
+													for(int f=0,fLen=subDetail["filelist"].size();f<fLen;f++){
+														dictionary item;
+                                                        item["id"]=subDetail["filelist"][f]["url"].asString();
+                                                        item["title"]=subs[i]["native_name"].asString();
+														string fileName=subDetail["filelist"][f]["f"].asString();
+														array<string> fileNameSplit=fileName.split(".");
+														string subtype=fileNameSplit[fileNameSplit.length()-1];
+														string lang=fileNameSplit[fileNameSplit.length()-2];
+                                                        item["fileName"]=fileName;
+														item["format"]=subtype;
+                                                        item["lang"]=convertLang(lang);
+														ret.insertLast(item);
+													}
+												}
+                                                else{
+                                                    dictionary item;
+                                                    item["id"]=subDetail["url"].asString();
+                                                    item["title"]=subDetail["native_name"].asString();
+                                                    string fileName=subDetail["filename"].asString();
+                                                    array<string> fileNameSplit=fileName.split(".");
+                                                    string subtype=fileNameSplit[fileNameSplit.length()-1];
+                                                    string lang=fileNameSplit[fileNameSplit.length()-2];
+                                                    item["fileName"]=fileName;
+                                                    item["format"]=subtype;
+                                                    item["lang"]=convertLang(lang);
+                                                    ret.insertLast(item);
+                                                }
+											}					
+										}
+									}
+                                    else{
+                                        break;
+                                    }
+								}
 							}
-							if(!(langlist["langdou"].asBool()||langlist["langcht"].asBool()||langlist["langchs"].asBool())){
-								item["lang"] = "eng";
-								if(langlist.size()<=3){
-									item["lang"] = "zh";
-								}
-								if(langlist["lagnkor"].asBool()){
-									item["lang"] = "ko";
-								}
-								if(langlist["langjap"].asBool()){
-									item["lang"] = "ja";
-								}
-							}
-							ret.insertLast(item);
 						}
-						if(subs.size()<=15){
-							break;
-						}
-					}else{
-				break;
-			}
+					}
+                    else{
+				        break;
+			        }
 				}
 				else{
-				break;
-			}
+				    break;
+			    }
 			}
 			else{
 				break;
 			}
 		}
 	}
-	
-	
 	return ret;
 }
-
 string SubtitleDownload(string id)
 {
-	string api = UrlComposeQuery(API_URL, "/v1/sub/detail", {
-		{"token", Token},
-		{"id", id}
-	});
-
-	string json = HostUrlGetString(api);
-	JsonReader Reader;
-	JsonValue Root;
-
-	if (Reader.parse(json, Root) && Root.isObject())
-	{
-		if (Root["status"].isInt()){
-			int status = Root["status"].asInt();
-
-			if (status == 0) {
-				JsonValue subs = Root["sub"]["subs"];	
-
-
-				if (subs.isArray()){
-					JsonValue subDetail = subs[0];
-
-					if (subDetail.isObject()){
-
-						JsonValue url;
-						if(!subDetail["url"].isNull()){
-							url=subDetail["url"];
-
-						}
-						else{
-							if(subDetail["filelist"].size()>0){
-							url = subDetail["filelist"][0]["url"];
-						}
-							
-						}
-
-
-						
-						if (url.isString())
-						{
-							return HostUrlGetString(url.asString());
-						}
-					}					
-				}
-			}
-		}
-	}
-
-	return "";
+    return HostUrlGetString(id);
 }
