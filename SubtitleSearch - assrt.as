@@ -76,7 +76,7 @@ string GetTitle()
 }
 string GetVersion()
 {
-	return "1.2";
+	return "1.3";
 }
 string GetDesc()
 {
@@ -152,7 +152,6 @@ string SubtitleWebSearch(string MovieFileName, dictionary MovieMetaData)
 		{"q", title},
 		{"is_file", '1'},
         // 在这里修改每次抓取的条数
-		{"cnt", '4'},
 		{"no_muxer", '1'}
 	});
 	return finalURL;
@@ -160,14 +159,15 @@ string SubtitleWebSearch(string MovieFileName, dictionary MovieMetaData)
 array<dictionary> SubtitleSearch(string MovieFileName, dictionary MovieMetaData)
 {
 	array<dictionary> ret;
-    // HostOpenConsole();
+    HostOpenConsole();
     array<string> MovieFileNameSplit=MovieFileName.split(".");
     if(MovieFileNameSplit[MovieFileNameSplit.length()-1]=="mpls"||MovieFileNameSplit[MovieFileNameSplit.length()-1]=="m2ts"){
         return ret;
     }
 	string finalURL = SubtitleWebSearch(MovieFileName, MovieMetaData);
 	for(int j=0;;j++){
-		string URL=UrlComposeQuery(finalURL,'',{{"pos",j}});
+		string URL=finalURL+"&pos="+formatInt(j);
+		HostPrintUTF8(URL);
 		string json = HostUrlGetString(URL);
 		JsonReader Reader;
 		JsonValue Root;
@@ -209,6 +209,7 @@ array<dictionary> SubtitleSearch(string MovieFileName, dictionary MovieMetaData)
                                                         item["fileName"]=fileName;
 														item["format"]=subtype;
                                                         item["lang"]=convertLang(lang);
+														HostPrintUTF8("i="+i+",f="+f+","+fileName);
 														ret.insertLast(item);
 													}
 												}
