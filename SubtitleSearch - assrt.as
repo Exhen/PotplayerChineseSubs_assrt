@@ -76,7 +76,7 @@ string GetTitle()
 }
 string GetVersion()
 {
-	return "1.3";
+	return "2.0";
 }
 string GetDesc()
 {
@@ -150,8 +150,8 @@ string SubtitleWebSearch(string MovieFileName, dictionary MovieMetaData)
 	string finalURL = UrlComposeQuery(API_URL, '/v1/sub/search', {
 		{"token", Token},
 		{"q", title},
-		{"is_file", '1'},
-        // 在这里修改每次抓取的条数
+		{"filelist", '1'},
+		{"cnt", '15'},
 		{"no_muxer", '1'}
 	});
 	return finalURL;
@@ -166,7 +166,7 @@ array<dictionary> SubtitleSearch(string MovieFileName, dictionary MovieMetaData)
     }
 	string finalURL = SubtitleWebSearch(MovieFileName, MovieMetaData);
 	for(int j=0;;j++){
-		string URL=finalURL+"&pos="+formatInt(j);
+		string URL=finalURL+"&pos="+formatInt(j*15);
 		// HostPrintUTF8(URL);
 		string json = HostUrlGetString(URL);
 		JsonReader Reader;
@@ -179,60 +179,41 @@ array<dictionary> SubtitleSearch(string MovieFileName, dictionary MovieMetaData)
 					JsonValue subs = Root["sub"]["subs"];
 					if (subs.isArray()){
 						for(int i = 0, len = subs.size(); i < len; i++){
-                            // HostPrintUTF8(subs[i]["id"].asString());
-							string api = UrlComposeQuery(API_URL, "/v1/sub/detail", {
-								{"token", Token},
-								{"id", subs[i]["id"].asString()}
-							});
-							string downJson = HostUrlGetString(api);
-							JsonReader downReader;
-							JsonValue downRoot;
-							if (downReader.parse(downJson, downRoot) && downRoot.isObject())
-							{
-								if (downRoot["status"].isInt()){
-                                    // HostPrintUTF8(downRoot["status"].asString());
-									int downStatus = downRoot["status"].asInt();
-									if (downStatus == 0) {
-										JsonValue fSubs = downRoot["sub"]["subs"];	
-										if (fSubs.isArray()){
-											JsonValue subDetail = fSubs[0];
-											if (subDetail.isObject()){
-												if(subDetail["filelist"].size()>0){
-													for(int f=0,fLen=subDetail["filelist"].size();f<fLen;f++){
-														dictionary item;
-                                                        item["id"]=subDetail["filelist"][f]["url"].asString();
-                                                        item["title"]=subs[i]["native_name"].asString();
-														string fileName=subDetail["filelist"][f]["f"].asString();
-														array<string> fileNameSplit=fileName.split(".");
-														string subtype=fileNameSplit[fileNameSplit.length()-1];
-														string lang=fileNameSplit[fileNameSplit.length()-2];
-                                                        item["fileName"]=fileName;
-														item["format"]=subtype;
-                                                        item["lang"]=convertLang(lang);
-														ret.insertLast(item);
-													}
-												}
-                                                else{
-                                                    dictionary item;
-                                                    item["id"]=subDetail["url"].asString();
-                                                    item["title"]=subDetail["native_name"].asString();
-                                                    string fileName=subDetail["filename"].asString();
-                                                    array<string> fileNameSplit=fileName.split(".");
-                                                    string subtype=fileNameSplit[fileNameSplit.length()-1];
-                                                    string lang=fileNameSplit[fileNameSplit.length()-2];
-                                                    item["fileName"]=fileName;
-                                                    item["format"]=subtype;
-                                                    item["lang"]=convertLang(lang);
-                                                    ret.insertLast(item);
-                                                }
-											}					
-										}
-									}
-                                    else{
-                                        break;
-                                    }
+							if(subs[i]["filelist"].size()>0){
+								for(int f=0,fLen=subs[i]["filelist"].size();f<fLen;f++){
+									dictionary item;
+									int id=subs[i]["id"].asInt();
+									item["id"]=formatInt(id)+"￥"+formatInt(f);
+									item["title"]=subs[i]["native_name"].asString();
+									string fileName=subs[i]["filelist"][f]["f"].asString();
+									array<string> fileNameSplit=fileName.split(".");
+									string subtype=fileNameSplit[fileNameSplit.length()-1];
+									string lang=fileNameSplit[fileNameSplit.length()-2];
+									item["fileName"]=fileName;
+									item["format"]=subtype;
+									item["lang"]=convertLang(lang);
+									item["url"]="http://assrt.net/xml/sub/"+formatInt(id/1000)+"/"+formatInt(id)+".xml";
+									ret.insertLast(item);
 								}
 							}
+							else{
+								dictionary item;
+								int id=subs[i]["id"].asInt();
+								item["id"]=formatInt(id);
+								item["title"]=subs[i]["native_name"].asString();
+								string fileName=subs[i]["filename"].asString();
+								array<string> fileNameSplit=fileName.split(".");
+								string subtype=fileNameSplit[fileNameSplit.length()-1];
+								string lang=fileNameSplit[fileNameSplit.length()-2];
+								item["fileName"]=fileName;
+								item["format"]=subtype;
+								item["lang"]=convertLang(lang);
+								item["url"]="http://assrt.net/xml/sub/"+formatInt(id/1000)+"/"+formatInt(id)+".xml";
+								ret.insertLast(item);
+							}
+						}
+						if(subs.size()<15){
+							break;
 						}
 					}
                     else{
@@ -247,10 +228,67 @@ array<dictionary> SubtitleSearch(string MovieFileName, dictionary MovieMetaData)
 				break;
 			}
 		}
+		else{
+			break;
+		}
 	}
 	return ret;
 }
 string SubtitleDownload(string id)
 {
-    return HostUrlGetString(id);
+	array<string> idSplit=id.split("￥");
+	if(idSplit.size()>1){
+		int num=parseInt(idSplit[1]);
+		string api = UrlComposeQuery(API_URL, "/v1/sub/detail", {
+			{"token", Token},
+			{"id", idSplit[0]}
+		});
+		string downJson = HostUrlGetString(api);
+		JsonReader downReader;
+		JsonValue downRoot;
+		if (downReader.parse(downJson, downRoot) && downRoot.isObject())
+		{
+			if (downRoot["status"].isInt()){
+		        // HostPrintUTF8(downRoot["status"].asString());
+				int downStatus = downRoot["status"].asInt();
+				if (downStatus == 0) {
+					JsonValue fSubs = downRoot["sub"]["subs"];	
+					if (fSubs.isArray()){
+						JsonValue subDetail = fSubs[0];
+						if (subDetail.isObject()){
+							if(subDetail["filelist"].size()>num){
+								return HostUrlGetString(subDetail["filelist"][num]["url"].asString());
+							}
+
+						}	
+					}
+				}
+			}
+		}
+	}else{
+		string api = UrlComposeQuery(API_URL, "/v1/sub/detail", {
+			{"token", Token},
+			{"id", idSplit[0]}
+		});
+		string downJson = HostUrlGetString(api);
+		JsonReader downReader;
+		JsonValue downRoot;
+		if (downReader.parse(downJson, downRoot) && downRoot.isObject())
+		{
+			if (downRoot["status"].isInt()){
+		        // HostPrintUTF8(downRoot["status"].asString());
+				int downStatus = downRoot["status"].asInt();
+				if (downStatus == 0) {
+					JsonValue fSubs = downRoot["sub"]["subs"];	
+					if (fSubs.isArray()){
+						JsonValue subDetail = fSubs[0];
+						if (subDetail.isObject()){				
+							return HostUrlGetString(subDetail["url"].asString());
+						}	
+					}
+				}
+			}
+		}
+	}
+    return "";
 }
