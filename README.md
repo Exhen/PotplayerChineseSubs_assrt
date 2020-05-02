@@ -1,4 +1,4 @@
-# PotplayerChineseSubs
+# PotplayerChineseSubs_assrt
 
 
 ## 使用方法
