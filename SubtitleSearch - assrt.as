@@ -63,7 +63,7 @@ string HtmlSpecialCharsDecode(string str)
 	str.replace("&rsquo;", "'");
 	return str;
 }
-string API_URL = "https://api.assrt.net";
+string API_URL = "http://api.assrt.net";
 array<array<string>> LangTable =
 {
 	{ "en", "English" },                              
@@ -76,7 +76,7 @@ string GetTitle()
 }
 string GetVersion()
 {
-	return "2.0";
+	return "2.1";
 }
 string GetDesc()
 {
@@ -112,7 +112,7 @@ string ServerCheck(string User, string Pass)
 string ServerLogin(string User, string Pass)
 {
     Token = Pass;
-	string r = HostUrlGetString(API_URL+"/v1/sub/search?token=" + Pass + "&q=颐和园");
+	string r = HostUrlGetString(API_URL+"/v1/sub/search?token=" + Pass + "&q=%E9%A2%90%E5%92%8C%E5%9B%AD");
 	JsonValue json;
 	JsonReader jsonR;
 	if (jsonR.parse(r,json))
